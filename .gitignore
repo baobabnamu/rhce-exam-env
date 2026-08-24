@@ -1,4 +1,47 @@
+# ---- Terraform state / working files ----
+# .terraform 디렉터리(다운로드된 provider 바이너리 등)는 로컬 캐시라 커밋 대상 아님
+**/.terraform/*
+# tfstate에는 리소스 속성이 평문으로 들어가고, 경우에 따라 비밀번호/토큰 등 민감 값이 노출될 수 있음
+*.tfstate
+*.tfstate.*
+# terraform plan -out=... 으로 저장한 실행계획 파일
+*.tfplan
+# crash 발생 시 생성되는 로그
+crash.log
+crash.*.log
+# 로컬에서만 리소스를 덮어쓰기 위한 override 파일 (환경별로 다르므로 커밋하지 않음)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# Terraform CLI 개인 설정 (플러그인 캐시 경로 등 로컬 환경 종속)
+.terraformrc
+terraform.rc
+# 참고: .terraform.lock.hcl 은 provider 버전을 고정하는 파일이라 반대로 커밋해야 함 (ignore 대상 아님)
+
+# ---- 민감 정보 / 시크릿 ----
+# API 토큰, SSH 공개키 등 환경별 실제 값이 들어가는 파일
+*.tfvars
+*.tfvars.json
+secrets.txt
+# 실수로 리포에 키를 복사해 넣는 경우를 방지
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# ---- Terraform이 생성하는 산출물 ----
+# outputs.tf의 local_file 리소스가 apply 시 자동 생성하는 Ansible 인벤토리
+terraform/inventory.ini
+
+# ---- 에디터 / AI 툴 설정 ----
 *.claude*
 *.cursor*
+
+# ---- OS ----
 .DS_Store
+
+# ---- Personal Files ----
 secrets.txt

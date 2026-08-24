@@ -1,0 +1,21 @@
+# 이 파일을 terraform.tfvars 로 복사한 뒤 실제 값으로 채울 것.
+# terraform.tfvars 는 API 토큰을 포함하므로 git에 커밋하지 말 것 (.gitignore 처리).
+
+pm_api_url      = "https://proxmox.example.com:8006/api2/json"
+pm_api_token    = "terraform@pve!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+pm_tls_insecure = true
+pm_ssh_username = "root"
+
+target_node   = "pve"
+template_vmid = 9000 # RHEL9/Rocky9 cloud-init 템플릿 VMID
+
+storage        = "local-lvm"
+network_bridge = "vmbr0"
+
+ip_prefix_base = "192.168.10"
+ip_cidr        = 24
+ip_gateway     = "192.168.10.1"
+dns_servers    = ["192.168.10.1"]
+
+ci_user        = "ansible"
+ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"
