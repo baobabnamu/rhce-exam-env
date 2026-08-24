@@ -5,7 +5,7 @@
 # 1) 최소 권한 role 생성
 pveum role add TerraformProvisioner -privs "VM.Allocate,VM.Clone,VM.Config.CDROM,\
 VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.Memory,\
-VM.Config.Network,VM.Config.Options,VM.Audit,VM.PowerMgmt,\
+VM.Config.Network,VM.Config.Options,VM.Audit,VM.PowerMgmt,VM.GuestAgent.Audit,\
 Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit,\
 Sys.Audit,Sys.Console,Sys.Modify,SDN.Use"
 
