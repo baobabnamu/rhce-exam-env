@@ -37,32 +37,10 @@ variable "storage" {
   default     = "local-lvm"
 }
 
-variable "network_bridge" {
-  description = "VM 네트워크에 연결할 브리지"
+variable "isolated_bridge" {
+  description = "Managed Node용 격리 네트워크 브릿지 (업링크 없는 순수 브릿지, proxmox/add-isolated-bridge.sh 로 생성)"
   type        = string
-  default     = "vmbr0"
-}
-
-variable "ip_prefix_base" {
-  description = "IP 앞 3개 옥텟, 예: 192.168.10 -> vms 맵의 ip_octet과 합쳐서 192.168.10.X 생성"
-  type        = string
-}
-
-variable "ip_cidr" {
-  description = "서브넷 프리픽스 길이"
-  type        = number
-  default     = 24
-}
-
-variable "ip_gateway" {
-  description = "게이트웨이 IP"
-  type        = string
-}
-
-variable "dns_servers" {
-  description = "VM에 설정할 DNS 서버 목록"
-  type        = list(string)
-  default     = ["8.8.8.8", "1.1.1.1"]
+  default     = "vmbr1"
 }
 
 variable "ci_user" {
@@ -72,30 +50,51 @@ variable "ci_user" {
 }
 
 variable "ssh_public_key" {
-  description = "위 ci_user 계정에 등록할 공개키 내용 (예: file(\"~/.ssh/id_ed25519.pub\") 로 전달)"
+  description = "위 ci_user 계정에 등록할 공개키 내용 (예: file(\"~/.ssh/id_rsa.pub\") 로 전달)"
   type        = string
 }
 
 variable "vms" {
-  description = "생성할 VM 정의: controller 1대 + node 5대. RHCE 실습용 기본 스펙이 들어가 있음."
+  description = "생성할 VM 정의: controller 1대 + utility 1대 + node 5대. controller/utility는 홈랩(vmbr0)+격리망(vmbr1) 이중 NIC, node는 격리망(vmbr1) 단일 NIC."
   type = map(object({
     vm_id           = number
-    role            = string # "controller" | "node"
+    role            = string # "controller" | "utility" | "node"
     cores           = number
     memory          = number # MiB
     disk_size       = number # GiB, OS 디스크
-    extra_disk_size = optional(number) # GiB, LVM/스토리지 실습용 추가 디스크
-    ip_octet        = number # ip_prefix_base 뒤에 붙는 마지막 옥텟
+    extra_disk_size = optional(number) # GiB, LVM/스토리지 실습용 추가 디스크 (node 전용)
+    dns_servers     = list(string)
+    networks = list(object({
+      bridge  = string
+      address = string            # CIDR, 예: "192.168.0.110/24"
+      gateway = optional(string)  # 격리망 NIC는 생략 = 게이트웨이 없음(진짜 오프라인)
+    }))
   }))
 
   default = {
     "rhce-controller" = {
-      vm_id     = 9001
-      role      = "controller"
-      cores     = 2
-      memory    = 2048
-      disk_size = 20
-      ip_octet  = 110
+      vm_id       = 9001
+      role        = "controller"
+      cores       = 2
+      memory      = 2048
+      disk_size   = 20
+      dns_servers = ["192.168.0.1"]
+      networks = [
+        { bridge = "vmbr0", address = "192.168.0.110/24", gateway = "192.168.0.1" },
+        { bridge = "vmbr1", address = "172.16.0.10/24" },
+      ]
+    }
+    "rhce-utility" = {
+      vm_id       = 9002
+      role        = "utility"
+      cores       = 2
+      memory      = 2048
+      disk_size   = 60 # reposync로 받는 BaseOS+AppStream 저장소 용량 확보
+      dns_servers = ["192.168.0.1"]
+      networks = [
+        { bridge = "vmbr0", address = "192.168.0.111/24", gateway = "192.168.0.1" },
+        { bridge = "vmbr1", address = "172.16.0.1/24" },
+      ]
     }
     "rhce-node1" = {
       vm_id           = 9011
@@ -104,7 +103,8 @@ variable "vms" {
       memory          = 2048
       disk_size       = 15
       extra_disk_size = 10
-      ip_octet        = 111
+      dns_servers     = ["172.16.0.1"]
+      networks        = [{ bridge = "vmbr1", address = "172.16.0.11/24" }]
     }
     "rhce-node2" = {
       vm_id           = 9012
@@ -113,7 +113,8 @@ variable "vms" {
       memory          = 2048
       disk_size       = 15
       extra_disk_size = 10
-      ip_octet        = 112
+      dns_servers     = ["172.16.0.1"]
+      networks        = [{ bridge = "vmbr1", address = "172.16.0.12/24" }]
     }
     "rhce-node3" = {
       vm_id           = 9013
@@ -122,7 +123,8 @@ variable "vms" {
       memory          = 2048
       disk_size       = 15
       extra_disk_size = 10
-      ip_octet        = 113
+      dns_servers     = ["172.16.0.1"]
+      networks        = [{ bridge = "vmbr1", address = "172.16.0.13/24" }]
     }
     "rhce-node4" = {
       vm_id           = 9014
@@ -131,7 +133,8 @@ variable "vms" {
       memory          = 2048
       disk_size       = 15
       extra_disk_size = 10
-      ip_octet        = 114
+      dns_servers     = ["172.16.0.1"]
+      networks        = [{ bridge = "vmbr1", address = "172.16.0.14/24" }]
     }
     "rhce-node5" = {
       vm_id           = 9015
@@ -140,7 +143,8 @@ variable "vms" {
       memory          = 2048
       disk_size       = 15
       extra_disk_size = 10
-      ip_octet        = 115
+      dns_servers     = ["172.16.0.1"]
+      networks        = [{ bridge = "vmbr1", address = "172.16.0.15/24" }]
     }
   }
 }

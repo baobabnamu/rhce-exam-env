@@ -9,13 +9,11 @@ pm_ssh_username = "root"
 target_node   = "pve"
 template_vmid = 9000 # RHEL9/Rocky9 cloud-init 템플릿 VMID
 
-storage        = "local-lvm"
-network_bridge = "vmbr0"
-
-ip_prefix_base = "192.168.10"
-ip_cidr        = 24
-ip_gateway     = "192.168.10.1"
-dns_servers    = ["192.168.10.1"]
+storage         = "local-lvm"
+isolated_bridge = "vmbr1" # proxmox/add-isolated-bridge.sh 로 생성
 
 ci_user        = "ansible"
 ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"
+
+# 홈랜 대역이 192.168.0.0/24, 격리망이 172.16.0.0/24가 아니라면
+# tfvars가 아니라 variables.tf의 vms 기본값(각 VM networks[].address/gateway)을 직접 수정할 것.

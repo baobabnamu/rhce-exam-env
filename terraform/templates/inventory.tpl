@@ -1,6 +1,9 @@
 [controller]
 ${controller_name} ansible_host=${controller_ip}
 
+[utility]
+${utility_name} ansible_host=${utility_ip}
+
 [nodes]
 %{ for name, ip in nodes ~}
 ${name} ansible_host=${ip}

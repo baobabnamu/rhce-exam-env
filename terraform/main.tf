@@ -56,22 +56,28 @@ resource "proxmox_virtual_environment_vm" "this" {
     }
   }
 
-  network_device {
-    bridge = var.network_bridge
+  dynamic "network_device" {
+    for_each = each.value.networks
+    content {
+      bridge = network_device.value.bridge
+    }
   }
 
   initialization {
     datastore_id = var.storage
 
-    ip_config {
-      ipv4 {
-        address = "${var.ip_prefix_base}.${each.value.ip_octet}/${var.ip_cidr}"
-        gateway = var.ip_gateway
+    dynamic "ip_config" {
+      for_each = each.value.networks
+      content {
+        ipv4 {
+          address = ip_config.value.address
+          gateway = try(ip_config.value.gateway, null)
+        }
       }
     }
 
     dns {
-      servers = var.dns_servers
+      servers = each.value.dns_servers
     }
 
     user_account {

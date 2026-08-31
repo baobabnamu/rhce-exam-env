@@ -1,0 +1,58 @@
+---
+# 반드시 Utility 안에서 실행한다 (Controller가 아니다!).
+# nodes는 격리망이라 Mac에서 직접 도달 불가하고, Controller는 실제 시험 대상이라
+# ansible을 미리 설치/실행해 두면 안 된다. Utility는 시험 채점 대상이 아니므로 여기서 돌린다.
+# ssh -i ~/.ssh/id_rsa ansible@<utility-ip> \
+#   'ansible-playbook -i ~/inventory.ini ~/bootstrap-node-repos.yml'
+- name: Point managed nodes at the Utility local repo (offline lab)
+  hosts: nodes
+  become: true
+
+  vars:
+    utility_ip: "172.16.0.1"
+
+  tasks:
+    - name: Find existing upstream repo files
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d
+        patterns: "*.repo"
+        excludes: "rhce-lab.repo"
+      register: upstream_repo_files
+
+    - name: Disable upstream repo files (unreachable mirrors)
+      ansible.builtin.command:
+        cmd: "mv {{ item.path }} {{ item.path }}.disabled"
+      loop: "{{ upstream_repo_files.files }}"
+
+    - name: Point dnf at the Utility local mirror
+      ansible.builtin.copy:
+        dest: /etc/yum.repos.d/rhce-lab.repo
+        mode: "0644"
+        content: |
+          [lab-baseos]
+          name=RHCE Lab BaseOS (utility)
+          baseurl=http://{{ utility_ip }}/repo/baseos
+          enabled=1
+          gpgcheck=0
+
+          [lab-appstream]
+          name=RHCE Lab AppStream (utility)
+          baseurl=http://{{ utility_ip }}/repo/appstream
+          enabled=1
+          gpgcheck=0
+
+    - name: Clean dnf cache
+      ansible.builtin.command:
+        cmd: dnf clean all
+
+    - name: Point chrony at the Utility node
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^pool '
+        line: "server {{ utility_ip }} iburst"
+        state: present
+
+    - name: Restart chronyd
+      ansible.builtin.systemd:
+        name: chronyd
+        state: restarted

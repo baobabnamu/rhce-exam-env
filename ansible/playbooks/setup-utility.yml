@@ -1,0 +1,131 @@
+---
+# Mac에서 직접 실행 (utility는 vmbr0/홈랜 IP로 도달 가능).
+# ansible-playbook -i ../terraform/inventory.ini playbooks/setup-utility.yml
+- name: Configure Utility node (DNS, NTP, local Rocky repo mirror)
+  hosts: utility
+  become: true
+
+  vars:
+    lab_domain: lab.internal
+    repo_root: /var/www/html/repo
+    lab_hosts:
+      - { ip: "172.16.0.10", name: "controller" }
+      - { ip: "172.16.0.1", name: "utility" }
+      - { ip: "172.16.0.11", name: "node1" }
+      - { ip: "172.16.0.12", name: "node2" }
+      - { ip: "172.16.0.13", name: "node3" }
+      - { ip: "172.16.0.14", name: "node4" }
+      - { ip: "172.16.0.15", name: "node5" }
+
+  tasks:
+    - name: Install DNS/NTP/HTTP/firewalld/repo/ansible tooling
+      ansible.builtin.dnf:
+        name:
+          - dnsmasq
+          - chrony
+          - httpd
+          - firewalld
+          - dnf-utils
+          - ansible-core
+        state: present
+      # ansible-core는 여기(Utility)에만 설치한다. Controller는 실제 RHCE 시험 대상이라
+      # "Ansible 설치/구성"이 채점 항목이므로, Controller에는 절대 미리 설치하지 않는다.
+      # 격리망(vmbr1)의 Node 저장소를 부트스트랩하는 용도로만 Utility에서 ansible을 쓴다.
+
+    - name: Copy the lab SSH private key so Utility can reach nodes
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa"
+        dest: /home/ansible/.ssh/id_rsa
+        mode: "0600"
+        owner: ansible
+        group: ansible
+
+    - name: Ensure firewalld is running
+      ansible.builtin.systemd:
+        name: firewalld
+        enabled: true
+        state: started
+
+    - name: Write internal hosts file for dnsmasq
+      ansible.builtin.copy:
+        dest: /etc/dnsmasq-lab.hosts
+        mode: "0644"
+        content: |
+          {% for h in lab_hosts %}
+          {{ h.ip }} {{ h.name }} {{ h.name }}.{{ lab_domain }}
+          {% endfor %}
+      notify: restart dnsmasq
+
+    - name: Configure dnsmasq for the isolated network
+      ansible.builtin.copy:
+        dest: /etc/dnsmasq.d/rhce-lab.conf
+        mode: "0644"
+        content: |
+          listen-address=172.16.0.1
+          bind-interfaces
+          no-hosts
+          addn-hosts=/etc/dnsmasq-lab.hosts
+          server=192.168.0.1
+      notify: restart dnsmasq
+
+    - name: Configure chrony to serve the isolated network
+      ansible.builtin.blockinfile:
+        path: /etc/chrony.conf
+        marker: "# {mark} RHCE LAB"
+        block: |
+          allow 172.16.0.0/24
+          local stratum 10
+      notify: restart chronyd
+
+    - name: Allow dns/ntp/http through firewalld
+      ansible.builtin.command:
+        cmd: "firewall-cmd --permanent --add-service={{ item }}"
+      loop:
+        - dns
+        - ntp
+        - http
+      register: fw_add
+      changed_when: "'ALREADY_ENABLED' not in fw_add.stdout"
+
+    - name: Reload firewalld
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+
+    - name: Create repo root
+      ansible.builtin.file:
+        path: "{{ repo_root }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check whether repo mirror already synced
+      ansible.builtin.stat:
+        path: "{{ repo_root }}/baseos/repodata"
+      register: baseos_repodata
+
+    - name: Mirror BaseOS + AppStream (최초 1회, 회선에 따라 수십 분 소요될 수 있음)
+      ansible.builtin.command:
+        cmd: >
+          dnf reposync --repoid=baseos --repoid=appstream
+          --download-path={{ repo_root }} --download-metadata
+      when: not baseos_repodata.stat.exists
+
+    - name: Enable and start dnsmasq/chronyd/httpd
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - dnsmasq
+        - chronyd
+        - httpd
+
+  handlers:
+    - name: restart dnsmasq
+      ansible.builtin.systemd:
+        name: dnsmasq
+        state: restarted
+
+    - name: restart chronyd
+      ansible.builtin.systemd:
+        name: chronyd
+        state: restarted
