@@ -35,10 +35,10 @@
     - name: Copy the lab SSH private key so Utility can reach nodes
       ansible.builtin.copy:
         src: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa"
-        dest: /home/ansible/.ssh/id_rsa
+        dest: /home/admin/.ssh/id_rsa
         mode: "0600"
-        owner: ansible
-        group: ansible
+        owner: admin
+        group: admin
 
     - name: Ensure firewalld is running
       ansible.builtin.systemd:

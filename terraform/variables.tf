@@ -44,9 +44,9 @@ variable "isolated_bridge" {
 }
 
 variable "ci_user" {
-  description = "cloud-init으로 생성할 관리 계정 (ansible_user로 사용)"
+  description = "cloud-init으로 생성할 관리 계정 (ansible_user로 사용). 실제 RHCE 시험 계정명이 admin이라 기본값도 admin으로 맞춤"
   type        = string
-  default     = "ansible"
+  default     = "admin"
 }
 
 variable "ssh_public_key" {

@@ -12,7 +12,7 @@ template_vmid = 9000 # RHEL9/Rocky9 cloud-init 템플릿 VMID
 storage         = "local-lvm"
 isolated_bridge = "vmbr1" # proxmox/add-isolated-bridge.sh 로 생성
 
-ci_user        = "ansible"
+ci_user        = "admin"
 ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"
 
 # 홈랜 대역이 192.168.0.0/24, 격리망이 172.16.0.0/24가 아니라면

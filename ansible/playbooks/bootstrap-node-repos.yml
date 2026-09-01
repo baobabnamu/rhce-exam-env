@@ -2,7 +2,7 @@
 # 반드시 Utility 안에서 실행한다 (Controller가 아니다!).
 # nodes는 격리망이라 Mac에서 직접 도달 불가하고, Controller는 실제 시험 대상이라
 # ansible을 미리 설치/실행해 두면 안 된다. Utility는 시험 채점 대상이 아니므로 여기서 돌린다.
-# ssh -i ~/.ssh/id_rsa ansible@<utility-ip> \
+# ssh -i ~/.ssh/id_rsa admin@<utility-ip> \
 #   'ansible-playbook -i ~/inventory.ini ~/bootstrap-node-repos.yml'
 - name: Point managed nodes at the Utility local repo (offline lab)
   hosts: nodes
